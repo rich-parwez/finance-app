@@ -1,0 +1,9 @@
+/* Mobile & tablet (< 1024px): converters first, then news, then the other widgets */
+@media (max-width: 1023.98px) {
+    main > aside { display: contents; }          /* sidebar cards become direct grid items */
+    main > aside > * { margin-top: 0 !important; } /* spacing comes from the grid gap */
+    #cryptoConverter { order: -2; }
+    #worldConverter  { order: -1; }
+    main > section   { order: 0; }
+    main > aside > :not(#cryptoConverter):not(#worldConverter) { order: 1; }
+}

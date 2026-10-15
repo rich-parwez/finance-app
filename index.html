@@ -1,0 +1,610 @@
+<!doctype html>
+<html lang="en" class="dark">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Tickr – Financial News & Market Tracker</title>
+    <meta
+      name="description"
+      content="Tickr: berita keuangan, ticker pasar, konverter mata uang & kripto, dan bookmark artikel."
+    />
+    <meta name="theme-color" content="#0f172a" />
+    <link rel="shortcut icon" href="favicon.svg" type="fav-icon" />
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="js/tailwind-config.js"></script>
+    <!-- Lucide Icons & Chart.js -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link rel="stylesheet" href="css/base.css" />
+    <link rel="stylesheet" href="css/ticker.css" />
+    <link rel="stylesheet" href="css/theme.css" />
+    <link rel="stylesheet" href="css/responsive.css" />
+    <link rel="stylesheet" href="css/animations.css" />
+  </head>
+  <body
+    class="bg-slate-50 dark:bg-darkbg text-slate-900 dark:text-slate-100 min-h-screen flex flex-col transition-colors duration-200"
+  >
+    <div
+      class="bg-slate-900 text-slate-200 border-b border-slate-800 text-xs py-2.5 overflow-hidden sticky top-0 z-40 shadow-sm"
+    >
+      <div class="ticker-wrap flex items-center">
+        <div id="tickerContent" class="ticker-move flex items-center space-x-8">
+          <!-- Ticker items will be populated by JS -->
+        </div>
+      </div>
+    </div>
+
+   <header class="bg-white/80 dark:bg-darkcard/80 backdrop-blur-md border-b border-slate-200 dark:border-darkborder sticky top-[37px] z-30 transition-colors">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+            <!-- Brand Logo -->
+            <div class="flex items-center gap-1 cursor-pointer" onclick="resetFilters()">
+                    <!-- Ganti 'web-app-manifest-512x512.png' dengan nama/path file logo barumu -->
+                <img src="web-app-manifest-512x512.png" alt="Tickr Logo" class="w-20 h-20 rounded-xl object-contain shrink-0">
+                <span class="text-2xl font-extrabold tracking-tighter text-slate-900 dark:text-white leading-none">tickr<span class="text-emerald-500">.</span></span>
+            </div>
+
+            <!-- Global Search Bar (Dibuat sedikit lebih compact & ramping) -->
+            <div class="flex-1 max-w-sm mx-4 hidden md:block">
+                <div class="relative">
+                    <i data-lucide="search" class="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"></i>
+                    <input type="text" id="searchInput" placeholder="Search markets, stocks, news (e.g. Fed, BTC, Apple)..." 
+                        class="w-full pl-9 pr-4 py-1.5 text-xs bg-slate-100 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700/80 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500/50 dark:text-slate-100 transition-all">
+                </div>
+            </div>
+
+            <!-- Header Action Controls -->
+            <div class="flex items-center space-x-2 sm:space-x-3">
+                <button id="refreshBtn" onclick="fetchNewsData(true)" class="p-2 rounded-xl text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-700 transition-all" title="Refresh Live News" aria-label="Refresh news">
+                    <i data-lucide="refresh-cw" class="w-4 h-4"></i>
+                </button>
+                <button id="bookmarkToggleBtn" onclick="toggleSavedDrawer()" class="relative p-2 rounded-xl text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-700 transition-all" title="Saved Articles" aria-label="Saved articles">
+                    <i data-lucide="bookmark" class="w-4 h-4"></i>
+                    <span id="savedBadge" class="hidden absolute -top-1 -right-1 bg-emerald-500 text-white text-[10px] font-bold w-4 h-4 rounded-full flex items-center justify-center">0</span>
+                </button>
+                <button id="themeToggleBtn" onclick="toggleTheme()" class="p-2 rounded-xl text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-700 transition-all" title="Toggle Light/Dark Theme" aria-label="Toggle theme">
+                    <i data-lucide="sun" class="w-4 h-4 hidden dark:block"></i>
+                    <i data-lucide="moon" class="w-4 h-4 block dark:hidden"></i>
+                </button>
+            </div>
+        </div>
+
+        <!-- Mobile Search Bar -->
+        <div class="px-4 pb-3 md:hidden">
+            <div class="relative">
+                <i data-lucide="search" class="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"></i>
+                <input type="text" id="mobileSearchInput" placeholder="Search news & stocks..." 
+                    class="w-full pl-9 pr-4 py-2 text-sm bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500">
+            </div>
+        </div>
+    </header>
+
+    <main
+      class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 flex-1 w-full grid grid-cols-1 lg:grid-cols-12 gap-8"
+    >
+      <!-- Left Content Area: News Aggregator (8 cols) -->
+      <section class="lg:col-span-8 space-y-4">
+        <!-- Category Navigation & Sentiment Filter Bar -->
+        <div
+          class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-200 dark:border-slate-800 pb-3"
+        >
+          <!-- Tabs -->
+          <div
+            class="flex items-center space-x-1 overflow-x-auto pb-2 sm:pb-0 scrollbar-none"
+            id="categoryTabs"
+          >
+            <!-- Dynamic tabs rendered by JS -->
+          </div>
+
+          <!-- Sentiment Quick Filter -->
+          <div
+            class="flex items-center space-x-2 text-xs self-end sm:self-auto"
+          >
+            <span class="text-slate-400 font-medium hidden sm:inline"
+              >Filter Sentiment:</span
+            >
+            <select
+              id="sentimentFilter"
+              onchange="filterNews()"
+              class="bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700 rounded-lg px-2.5 py-1.5 focus:outline-none focus:ring-1 focus:ring-emerald-500"
+            >
+              <option value="ALL">All Sentiments</option>
+              <option value="BULLISH">Bullish 🟢</option>
+              <option value="BEARISH">Bearish 🔴</option>
+              <option value="NEUTRAL">Neutral ⚪</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- Active Filters Info Banner -->
+        <div
+          id="filterInfo"
+          class="hidden flex items-center justify-between bg-emerald-50 dark:bg-emerald-950/30 text-emerald-700 dark:text-emerald-400 text-xs px-4 py-2 rounded-xl border border-emerald-200 dark:border-emerald-800"
+        >
+          <span id="filterText">Showing filtered results</span>
+          <button
+            onclick="resetFilters()"
+            class="font-semibold underline hover:text-emerald-800 dark:hover:text-emerald-300"
+          >
+            Clear Filters
+          </button>
+        </div>
+
+        <!-- News Grid Container -->
+        <div id="newsGrid" class="grid grid-cols-1 md:grid-cols-2 gap-5">
+          <!-- Skeleton Loading State (Default) -->
+          <!-- Javascript will insert articles or skeleton cards here -->
+        </div>
+
+        <!-- Empty State -->
+        <div
+          id="emptyState"
+          class="hidden text-center py-16 bg-white dark:bg-darkcard rounded-2xl border border-slate-200 dark:border-darkborder p-6"
+        >
+          <i
+            data-lucide="newspaper"
+            class="w-12 h-12 mx-auto text-slate-400 mb-3"
+          ></i>
+          <h3 class="text-lg font-semibold text-slate-800 dark:text-slate-200">
+            No News Articles Found
+          </h3>
+          <p
+            class="text-sm text-slate-500 dark:text-slate-400 mt-1 max-w-sm mx-auto"
+          >
+            We couldn't find any financial updates matching your selected
+            filters or search terms.
+          </p>
+          <button
+            onclick="resetFilters()"
+            class="mt-4 px-4 py-2 text-xs font-semibold bg-emerald-500 text-white rounded-xl shadow-lg hover:bg-emerald-600 transition-all"
+          >
+            Reset All Filters
+          </button>
+        </div>
+      </section>
+
+      <!-- Right Sidebar Area: Analytics & Tools (4 cols) -->
+      <aside class="lg:col-span-4 space-y-6">
+        <!-- Mini Market Interactive Chart Card -->
+        <div
+          class="bg-white dark:bg-darkcard rounded-2xl border border-slate-200 dark:border-darkborder p-5 shadow-sm"
+        >
+          <div class="flex items-center justify-between mb-4">
+            <div>
+              <h3
+                class="font-bold text-slate-800 dark:text-slate-100 text-sm flex items-center"
+              >
+                <i
+                  data-lucide="line-chart"
+                  class="w-4 h-4 text-emerald-500 mr-2"
+                ></i>
+                Market Index Overview
+              </h3>
+              <p class="text-[11px] text-slate-400">
+                S&P 500 Performance Index
+              </p>
+            </div>
+            <span
+              id="chartChange"
+              class="text-xs font-semibold text-emerald-500 bg-emerald-500/10 px-2 py-0.5 rounded-full border border-emerald-500/20"
+              >+1.42% Today</span
+            >
+          </div>
+          <!-- Interactive Timeframe Buttons -->
+          <div
+            class="flex space-x-1 bg-slate-100 dark:bg-slate-800 p-1 rounded-lg mb-3 text-xs font-medium"
+          >
+            <button
+              onclick="updateChartTimeframe('1D', this)"
+              class="chart-tf-btn flex-1 py-1 rounded bg-white dark:bg-darkcard shadow-sm text-slate-800 dark:text-slate-100 text-center"
+            >
+              1D
+            </button>
+            <button
+              onclick="updateChartTimeframe('1W', this)"
+              class="chart-tf-btn flex-1 py-1 rounded text-slate-500 hover:text-slate-800 dark:hover:text-slate-200 text-center"
+            >
+              1W
+            </button>
+            <button
+              onclick="updateChartTimeframe('1M', this)"
+              class="chart-tf-btn flex-1 py-1 rounded text-slate-500 hover:text-slate-800 dark:hover:text-slate-200 text-center"
+            >
+              1M
+            </button>
+            <button
+              onclick="updateChartTimeframe('1Y', this)"
+              class="chart-tf-btn flex-1 py-1 rounded text-slate-500 hover:text-slate-800 dark:hover:text-slate-200 text-center"
+            >
+              1Y
+            </button>
+          </div>
+          <div class="h-44 w-full relative">
+            <canvas id="marketChart"></canvas>
+          </div>
+        </div>
+
+        <!-- Currency & Crypto Quick Converter Widget -->
+        <div
+          id="cryptoConverter"
+          class="bg-white dark:bg-darkcard rounded-2xl border border-slate-200 dark:border-darkborder p-5 shadow-sm"
+        >
+          <h3
+            class="font-bold text-slate-800 dark:text-slate-100 text-sm mb-3 flex items-center"
+          >
+            <i
+              data-lucide="arrow-right-left"
+              class="w-4 h-4 text-teal-500 mr-2"
+            ></i>
+            Crypto Converter
+          </h3>
+          <div class="space-y-3">
+            <div>
+              <label class="text-[11px] font-medium text-slate-400 block mb-1"
+                >From Amount</label
+              >
+              <div class="flex space-x-2">
+                <input
+                  type="number"
+                  id="convertAmount"
+                  value="1"
+                  min="0"
+                  oninput="calculateConversion()"
+                  class="w-full bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2 text-sm font-semibold focus:outline-none focus:ring-1 focus:ring-emerald-500"
+                />
+                <select
+                  id="convertFrom"
+                  onchange="calculateConversion()"
+                  class="bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2 text-xs font-semibold focus:outline-none"
+                >
+                  <option value="USD">USD ($)</option>
+                  <option value="BTC">BTC (₿)</option>
+                  <option value="ETH">ETH (Ξ)</option>
+                  <option value="EUR">EUR (€)</option>
+                </select>
+              </div>
+            </div>
+            <div>
+              <label class="text-[11px] font-medium text-slate-400 block mb-1"
+                >To Converted Value</label
+              >
+              <div class="flex space-x-2">
+                <input
+                  type="text"
+                  id="convertResult"
+                  readonly
+                  value="15,850.00"
+                  class="w-full bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2 text-sm font-bold text-emerald-600 dark:text-emerald-400"
+                />
+                <select
+                  id="convertTo"
+                  onchange="calculateConversion()"
+                  class="bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2 text-xs font-semibold focus:outline-none"
+                >
+                  <option value="IDR">IDR (Rp)</option>
+                  <option value="USD">USD ($)</option>
+                  <option value="EUR">EUR (€)</option>
+                  <option value="BTC">BTC (₿)</option>
+                </select>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- World Currency Converter -->
+        <div
+          id="worldConverter"
+          class="bg-white dark:bg-darkcard rounded-2xl border border-slate-200 dark:border-darkborder p-5 shadow-sm"
+        >
+          <h3
+            class="font-bold text-slate-800 dark:text-slate-100 text-sm mb-3 flex items-center"
+          >
+            <i data-lucide="globe" class="w-4 h-4 text-sky-500 mr-2"></i> World
+            Currency Converter
+          </h3>
+          <div class="space-y-3">
+            <div>
+              <label
+                for="fxAmount"
+                class="text-[11px] font-medium text-slate-400 block mb-1"
+                >Amount</label
+              >
+              <div class="flex space-x-2">
+                <input
+                  type="number"
+                  id="fxAmount"
+                  value="1"
+                  min="0"
+                  oninput="calculateFx()"
+                  class="w-full min-w-0 bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2 text-sm font-semibold focus:outline-none focus:ring-1 focus:ring-emerald-500"
+                />
+                <select
+                  id="fxFrom"
+                  onchange="calculateFx()"
+                  aria-label="From currency"
+                  class="w-40 shrink-0 bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-2 py-2 text-xs font-semibold focus:outline-none"
+                ></select>
+              </div>
+            </div>
+            <div class="flex justify-center -my-1">
+              <button
+                onclick="swapFx()"
+                aria-label="Swap currencies"
+                class="p-1.5 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-500 hover:text-emerald-500 transition-colors"
+              >
+                <i data-lucide="arrow-down-up" class="w-3.5 h-3.5"></i>
+              </button>
+            </div>
+            <div>
+              <label
+                for="fxResult"
+                class="text-[11px] font-medium text-slate-400 block mb-1"
+                >Converted</label
+              >
+              <div class="flex space-x-2">
+                <input
+                  type="text"
+                  id="fxResult"
+                  readonly
+                  class="w-full min-w-0 bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2 text-sm font-bold text-emerald-600 dark:text-emerald-400"
+                />
+                <select
+                  id="fxTo"
+                  onchange="calculateFx()"
+                  aria-label="To currency"
+                  class="w-40 shrink-0 bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-2 py-2 text-xs font-semibold focus:outline-none"
+                ></select>
+              </div>
+            </div>
+            <p
+              id="fxRate"
+              class="text-xs font-medium text-slate-500 dark:text-slate-300"
+            ></p>
+            <p class="text-[10px] text-slate-400">
+              <span id="fxStatus"></span> ·
+              <a
+                href="https://www.exchangerate-api.com"
+                target="_blank"
+                rel="noopener"
+                class="underline"
+                >Rates By Exchange Rate API</a
+              >
+            </p>
+          </div>
+        </div>
+
+        <!-- Market Movers -->
+        <div
+          class="bg-white dark:bg-darkcard rounded-2xl border border-slate-200 dark:border-darkborder p-5 shadow-sm"
+        >
+          <h3
+            class="font-bold text-slate-800 dark:text-slate-100 text-sm mb-2 flex items-center"
+          >
+            <i data-lucide="activity" class="w-4 h-4 text-sky-500 mr-2"></i>
+            Market Movers
+          </h3>
+          <div
+            id="moversList"
+            class="divide-y divide-slate-100 dark:divide-slate-800"
+          ></div>
+        </div>
+
+        <!-- Market Sentiment Summary Widget -->
+        <div
+          class="bg-white dark:bg-darkcard rounded-2xl border border-slate-200 dark:border-darkborder p-5 shadow-sm"
+        >
+          <h3
+            class="font-bold text-slate-800 dark:text-slate-100 text-sm mb-3 flex items-center"
+          >
+            <i data-lucide="gauge" class="w-4 h-4 text-amber-500 mr-2"></i> Fear
+            & Greed Index
+          </h3>
+          <div
+            class="flex items-center justify-between bg-slate-100 dark:bg-slate-800/80 p-4 rounded-xl border border-slate-200/60 dark:border-slate-700/60"
+          >
+            <div>
+              <span class="text-3xl font-extrabold text-emerald-500">68</span>
+              <span class="text-xs block text-slate-400 font-medium"
+                >Greed</span
+              >
+            </div>
+            <div class="text-right">
+              <span class="text-xs text-slate-500 dark:text-slate-400 block"
+                >Yesterday:
+                <strong class="text-slate-700 dark:text-slate-200"
+                  >64</strong
+                ></span
+              >
+              <span class="text-xs text-slate-500 dark:text-slate-400 block"
+                >Last Week:
+                <strong class="text-slate-700 dark:text-slate-200"
+                  >52</strong
+                ></span
+              >
+            </div>
+          </div>
+          <div
+            class="mt-3 w-full bg-slate-200 dark:bg-slate-700 h-2 rounded-full overflow-hidden flex"
+          >
+            <div class="bg-red-500 h-full w-[25%]" title="Extreme Fear"></div>
+            <div class="bg-amber-500 h-full w-[25%]" title="Fear"></div>
+            <div class="bg-emerald-400 h-full w-[25%]" title="Greed"></div>
+            <div
+              class="bg-emerald-600 h-full w-[25%]"
+              title="Extreme Greed"
+            ></div>
+          </div>
+        </div>
+      </aside>
+    </main>
+
+    <!-- Full Article Modal -->
+    <div
+      id="articleModal"
+      class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4"
+    >
+      <div
+        class="bg-white dark:bg-darkcard border border-slate-200 dark:border-darkborder rounded-2xl max-w-2xl w-full max-h-[90vh] flex flex-col shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-200"
+      >
+        <!-- Modal Header -->
+        <div
+          class="p-4 sm:p-6 border-b border-slate-200 dark:border-darkborder flex items-center justify-between bg-slate-50/50 dark:bg-slate-800/30"
+        >
+          <div class="flex items-center space-x-2">
+            <span
+              id="modalCategory"
+              class="text-[11px] font-bold uppercase tracking-wider px-2.5 py-1 bg-emerald-500/10 text-emerald-500 rounded-lg"
+              >Category</span
+            >
+            <span
+              id="modalSource"
+              class="text-xs font-semibold text-slate-500 dark:text-slate-400"
+              >Source</span
+            >
+          </div>
+          <button
+            onclick="closeArticleModal()"
+            class="p-2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 rounded-lg"
+          >
+            <i data-lucide="x" class="w-5 h-5"></i>
+          </button>
+        </div>
+        <!-- Modal Body -->
+        <div class="p-4 sm:p-6 overflow-y-auto space-y-4">
+          <h2
+            id="modalTitle"
+            class="text-xl sm:text-2xl font-bold leading-tight text-slate-900 dark:text-slate-100"
+          >
+            Article Title Placeholder
+          </h2>
+
+          <div
+            class="flex items-center justify-between text-xs text-slate-400 border-b border-slate-100 dark:border-slate-800 pb-3"
+          >
+            <div class="flex items-center space-x-4">
+              <span id="modalDate" class="flex items-center"
+                ><i data-lucide="clock" class="w-3.5 h-3.5 mr-1"></i> Date</span
+              >
+              <span id="modalReadTime" class="flex items-center"
+                ><i data-lucide="book-open" class="w-3.5 h-3.5 mr-1"></i> Read
+                time</span
+              >
+            </div>
+            <span id="modalSentiment" class="font-bold">Sentiment Badge</span>
+          </div>
+
+          <div
+            class="overflow-hidden rounded-xl h-52 sm:h-64 bg-slate-100 dark:bg-slate-800"
+          >
+            <img
+              id="modalImage"
+              src=""
+              alt="News Image"
+              class="w-full h-full object-cover"
+            />
+          </div>
+
+          <div
+            id="modalSummary"
+            class="text-sm text-slate-700 dark:text-slate-300 leading-relaxed space-y-3 font-normal"
+          >
+            <!-- Dynamic Summary Text -->
+          </div>
+
+          <!-- Key Insights Box -->
+          <div
+            class="bg-slate-50 dark:bg-slate-800/60 p-4 rounded-xl border border-slate-200/80 dark:border-slate-700/80 space-y-2"
+          >
+            <h4
+              class="text-xs font-bold uppercase tracking-wider text-emerald-600 dark:text-emerald-400 flex items-center"
+            >
+              <i data-lucide="sparkles" class="w-3.5 h-3.5 mr-1.5"></i> Key
+              Executive Takeaway
+            </h4>
+            <p
+              id="modalTakeaway"
+              class="text-xs text-slate-600 dark:text-slate-300 italic"
+            >
+              Key summary snippet for decision makers.
+            </p>
+          </div>
+        </div>
+        <!-- Modal Footer -->
+        <div
+          class="p-4 border-t border-slate-200 dark:border-darkborder bg-slate-50/50 dark:bg-slate-800/30 flex items-center justify-between"
+        >
+          <button
+            id="modalSaveBtn"
+            onclick="toggleSaveCurrentModalArticle()"
+            class="px-4 py-2 text-xs font-semibold rounded-xl border border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 flex items-center space-x-1.5"
+          >
+            <i data-lucide="bookmark" class="w-4 h-4"></i>
+            <span id="modalSaveBtnText">Bookmark Article</span>
+          </button>
+          <a
+            id="modalExternalLink"
+            href="#"
+            target="_blank"
+            class="px-4 py-2 text-xs font-semibold bg-emerald-500 hover:bg-emerald-600 text-white rounded-xl shadow-md shadow-emerald-500/20 flex items-center space-x-1.5 transition-all"
+          >
+            <span>Read Full Source</span>
+            <i data-lucide="external-link" class="w-3.5 h-3.5"></i>
+          </a>
+        </div>
+      </div>
+    </div>
+
+    <div
+      id="drawerOverlay"
+      class="fixed inset-0 bg-slate-900/50 z-40 hidden"
+      onclick="toggleSavedDrawer()"
+    ></div>
+    <!-- Saved Articles Drawer -->
+    <div
+      id="savedDrawer"
+      class="fixed inset-y-0 right-0 w-full sm:w-96 bg-white dark:bg-darkcard border-l border-slate-200 dark:border-darkborder shadow-2xl z-50 transform translate-x-full transition-transform duration-300 ease-in-out flex flex-col"
+    >
+      <div
+        class="p-5 border-b border-slate-200 dark:border-darkborder flex items-center justify-between bg-slate-50 dark:bg-slate-800/50"
+      >
+        <h3
+          class="font-bold text-slate-800 dark:text-slate-100 text-base flex items-center"
+        >
+          <i data-lucide="bookmark" class="w-5 h-5 text-emerald-500 mr-2"></i>
+          Saved Articles
+        </h3>
+        <button
+          onclick="toggleSavedDrawer()"
+          class="p-1 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 rounded-lg"
+        >
+          <i data-lucide="x" class="w-5 h-5"></i>
+        </button>
+      </div>
+      <div id="savedList" class="flex-1 overflow-y-auto p-4 space-y-3">
+        <!-- Saved items will be populated by JS -->
+      </div>
+    </div>
+
+    <!-- Footer -->
+    <footer
+      class="mt-auto border-t border-slate-200 dark:border-darkborder bg-white dark:bg-darkcard py-6 text-xs text-slate-500 dark:text-slate-400"
+    >
+      <div
+        class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row items-center justify-between gap-3"
+      >
+        <div class="flex items-center space-x-2">
+          <span class="font-bold text-slate-700 dark:text-slate-300"
+            >Tickr</span
+          >
+          <span>• Live Portfolio Project</span>
+        </div>
+        <p>
+          Data provided for simulation & market monitoring demo. Prices are
+          simulated. Not financial advice.
+        </p>
+      </div>
+    </footer>
+
+    <script src="js/app.js"></script>
+  </body>
+</html>

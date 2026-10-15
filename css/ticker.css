@@ -1,0 +1,23 @@
+/* Ticker Animation */
+@keyframes ticker {
+    0% { transform: translate3d(0, 0, 0); }
+    100% { transform: translate3d(-50%, 0, 0); }
+}
+.ticker-wrap {
+    overflow: hidden;
+    white-space: nowrap;
+}
+.ticker-move {
+    display: inline-block;
+    white-space: nowrap;
+    animation: ticker 35s linear infinite;
+}
+.ticker-move:hover {
+    animation-play-state: paused;
+}
+.ticker-move > div {
+    background: rgba(148, 163, 184, .08);
+    border: 1px solid rgba(148, 163, 184, .12);
+    padding: .2rem .7rem;
+    border-radius: 999px;
+}
